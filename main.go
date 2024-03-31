@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -18,17 +17,74 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 var filePath = flag.String("file", "", "the input file for the measurements.")
 
-type Data struct {
-	Min   float64
-	Max   float64
-	Sum   float64
+type Data map[string]StationData
+
+type StationData struct {
+	Min   int
+	Max   int
+	Sum   int
 	Count int
 }
 
-func (data *Data) CalculateMean() float64 {
+func (data *StationData) CalculateMean() float64 {
 	ratio := math.Pow(10, float64(1))
-	mean := data.Sum / float64(data.Count)
+	mean := (float64(data.Sum) / 10) / float64(data.Count)
 	return math.Round(mean*ratio) / ratio
+}
+
+// Splits a line into station, measurement
+func GetStationAndMesurement(line string) (string, int) {
+	i := strings.LastIndexByte(line, ';')
+	station := line[:i]
+
+	isNegative := false
+	measurement := 0
+	for _, c := range line[i+1:] {
+		if c == '.' {
+			continue
+		}
+		if c == '-' {
+			isNegative = true
+			continue
+		}
+		// Multiply the int by 10 then convert the character to its decimal ascii value
+		// Subtract '0' to convert the ascii value into an int value
+		measurement = measurement*10 + int(c) - '0'
+	}
+
+	if isNegative {
+		measurement = -1 * measurement
+	}
+	return station, measurement
+}
+
+/*
+Put the results to stdout
+
+<station name>=<min>/<mean>/<max>
+*/
+func PrintResults(data Data) {
+	names := SortStations(data)
+	fmt.Print("{")
+	for i, name := range names {
+		station := data[name]
+		if i == 0 {
+			fmt.Printf("%s=%.1f/%.1f/%.1f", name, float64(station.Min)/10, station.CalculateMean(), float64(station.Max)/10)
+		} else {
+			fmt.Printf(", %s=%.1f/%.1f/%.1f", name, float64(station.Min)/10, station.CalculateMean(), float64(station.Max)/10)
+		}
+	}
+	fmt.Println("}")
+}
+
+// Put every key into a slice sort it to make it alphabetical order
+func SortStations(data Data) []string {
+	names := make([]string, 0, len(data))
+	for station := range data {
+		names = append(names, station)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func main() {
@@ -49,52 +105,9 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	stationData := make(map[string]Data, 0)
-	stationName := make([]string, 0, 50)
-	lineCount := 0
+	data := ReadDataV1(*filePath)
 
-	for line := range ReadFileGoRoutineV1(*filePath) {
-		lineCount += 1
-		lineData := strings.Split(line, ";")
-		data := stationData[lineData[0]]
-		measurement, err := strconv.ParseFloat(lineData[1], 64)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if data.Min > measurement {
-			data.Min = measurement
-		}
-		if data.Max < measurement {
-			data.Max = measurement
-		}
-		data.Sum += measurement
-		data.Count += 1
-		stationData[lineData[0]] = data
-
-		if lineCount%50_000_000 == 0 {
-			log.Print("Parsed ", lineCount, " lines")
-		}
-	}
-
-	// Put every key into a slit and sort it to make it alphabetical order
-	for station := range stationData {
-		stationName = append(stationName, station)
-	}
-	sort.Strings(stationName)
-
-	// Put the results to stdout
-	// <station name>=<min>/<mean>/<max>
-	fmt.Print("{")
-	for i, station := range stationName {
-		data := stationData[station]
-		if i == 0 {
-			fmt.Printf("%s=%.1f/%.1f/%.1f", station, data.Min, data.CalculateMean(), data.Max)
-		} else {
-			fmt.Printf(", %s=%.1f/%.1f/%.1f", station, data.Min, data.CalculateMean(), data.Max)
-		}
-	}
-	fmt.Println("}")
+	PrintResults(data)
 
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
@@ -110,26 +123,39 @@ func main() {
 }
 
 // Initial read implementation which is memory efficient but slow
-func ReadFileGoRoutineV1(filePath string) <-chan (string) {
-	line := make(chan string)
-	go func() {
-		defer close(line)
-		file, err := os.Open(filePath)
+func ReadDataV1(filePath string) Data {
+	data := make(Data)
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	lineCount := 0
+	for {
+		readLine, _, err := reader.ReadLine()
 		if err != nil {
-			log.Fatal(err)
+			break
 		}
-		defer file.Close()
+		lineCount += 1
+		station, measurement := GetStationAndMesurement(string(readLine[:]))
+		stationData := data[station]
 
-		scanner := bufio.NewScanner(file)
-
-		for scanner.Scan() {
-			line <- scanner.Text()
+		if stationData.Min > measurement {
+			stationData.Min = measurement
+		}
+		if stationData.Max < measurement {
+			stationData.Max = measurement
 		}
 
-		if err := scanner.Err(); err != nil {
-			log.Fatal(err)
-		}
+		stationData.Sum += measurement
+		stationData.Count += 1
+		data[station] = stationData
 
-	}()
-	return line
+		if lineCount%50_000_000 == 0 {
+			log.Print("Parsed ", lineCount, " lines")
+		}
+	}
+	return data
 }
