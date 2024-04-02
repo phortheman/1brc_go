@@ -17,7 +17,7 @@ var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 var filePath = flag.String("file", "", "the input file for the measurements.")
 
-type Data map[string]StationData
+type Data map[string]*StationData
 
 type StationData struct {
 	Min   int
@@ -140,18 +140,25 @@ func ReadDataV1(filePath string) Data {
 		}
 		lineCount += 1
 		station, measurement := GetStationAndMesurement(string(readLine[:]))
-		stationData := data[station]
+		stationData, ok := data[station]
+		if !ok {
+			data[station] = &StationData{
+				Min:   measurement,
+				Max:   measurement,
+				Sum:   measurement,
+				Count: 1,
+			}
+		} else {
+			if stationData.Min > measurement {
+				stationData.Min = measurement
+			}
+			if stationData.Max < measurement {
+				stationData.Max = measurement
+			}
 
-		if stationData.Min > measurement {
-			stationData.Min = measurement
+			stationData.Sum += measurement
+			stationData.Count += 1
 		}
-		if stationData.Max < measurement {
-			stationData.Max = measurement
-		}
-
-		stationData.Sum += measurement
-		stationData.Count += 1
-		data[station] = stationData
 
 		if lineCount%50_000_000 == 0 {
 			log.Print("Parsed ", lineCount, " lines")
