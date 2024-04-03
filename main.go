@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"sort"
-	"strings"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
@@ -33,23 +32,32 @@ func (data *StationData) CalculateMean() float64 {
 }
 
 // Splits a line into station, measurement
-func GetStationAndMesurement(line string) (string, int) {
-	i := strings.LastIndexByte(line, ';')
-	station := line[:i]
-
+func SplitLine(line string) (string, int) {
+	station := ""
 	isNegative := false
+	tail := len(line) - 1
 	measurement := 0
-	for _, c := range line[i+1:] {
-		if c == '.' {
-			continue
-		}
-		if c == '-' {
+	decimalIndex := 0
+	decimal := [3]int{1, 10, 100}
+	for {
+		// If it is a minus sign then the next one is a semicolon
+		if line[tail] == '-' {
+			station = line[:tail-1]
 			isNegative = true
+			break
+		}
+		if line[tail] == '.' {
+			tail--
 			continue
 		}
-		// Multiply the int by 10 then convert the character to its decimal ascii value
-		// Subtract '0' to convert the ascii value into an int value
-		measurement = measurement*10 + int(c) - '0'
+		if line[tail] == ';' {
+			station = line[:tail]
+			break
+		}
+		digit := (int(line[tail]) - '0')
+		measurement = decimal[decimalIndex]*digit + measurement
+		decimalIndex++
+		tail--
 	}
 
 	if isNegative {
@@ -139,7 +147,7 @@ func ReadDataV1(filePath string) Data {
 			break
 		}
 		lineCount += 1
-		station, measurement := GetStationAndMesurement(string(readLine[:]))
+		station, measurement := SplitLine(string(readLine[:]))
 		stationData, ok := data[station]
 		if !ok {
 			data[station] = &StationData{
