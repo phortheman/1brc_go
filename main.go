@@ -76,11 +76,10 @@ func PrintResults(data Data) {
 	fmt.Print("{")
 	for i, name := range names {
 		station := data[name]
-		if i == 0 {
-			fmt.Printf("%s=%.1f/%.1f/%.1f", name, float64(station.Min)/10, station.CalculateMean(), float64(station.Max)/10)
-		} else {
-			fmt.Printf(", %s=%.1f/%.1f/%.1f", name, float64(station.Min)/10, station.CalculateMean(), float64(station.Max)/10)
+		if i != 0 {
+			fmt.Print(", ")
 		}
+		fmt.Printf("%s=%.1f/%.1f/%.1f", name, float64(station.Min)/10, station.CalculateMean(), float64(station.Max)/10)
 	}
 	fmt.Println("}")
 }
