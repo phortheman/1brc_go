@@ -12,9 +12,9 @@ import (
 	"sort"
 )
 
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
-var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
-var filePath = flag.String("file", "", "the input file for the measurements.")
+var cpuprofile = flag.String("cp", "", "write cpu profile to `file`")
+var memprofile = flag.String("mp", "", "write memory profile to `file`")
+var filePath = flag.String("f", "", "the input file for the measurements.")
 
 type Data map[string]*StationData
 
@@ -97,7 +97,7 @@ func SortStations(data Data) []string {
 func main() {
 	flag.Parse()
 	if *filePath == "" {
-		log.Fatal("'-file' is required")
+		log.Fatal("'-f' is required")
 	}
 
 	if *cpuprofile != "" {
