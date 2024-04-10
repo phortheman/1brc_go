@@ -15,6 +15,7 @@ import (
 var cpuprofile = flag.String("cp", "", "write cpu profile to `file`")
 var memprofile = flag.String("mp", "", "write memory profile to `file`")
 var filePath = flag.String("f", "", "the input file for the measurements.")
+var progress = flag.Bool("p", false, "print progress every 50 million rows.")
 
 type Data map[string]*StationData
 
@@ -170,7 +171,7 @@ func ReadDataV1(filePath string) Data {
 			stationData.Count += 1
 		}
 
-		if lineCount%50_000_000 == 0 {
+		if *progress && lineCount%50_000_000 == 0 {
 			log.Print("Parsed ", lineCount, " lines")
 		}
 	}
