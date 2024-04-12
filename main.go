@@ -38,8 +38,7 @@ func SplitLine(line string) (string, int) {
 	isNegative := false
 	tail := len(line) - 1
 	measurement := 0
-	digitIndex := 0
-	decimal := [3]int{1, 10, 100}
+	decimal := 1
 	for {
 		// If it is a minus sign then the next one is a semicolon
 		if line[tail] == '-' {
@@ -59,8 +58,8 @@ func SplitLine(line string) (string, int) {
 		}
 		// Get the digit value then multiply it with the decimal place it is in
 		digit := (int(line[tail]) - '0')
-		measurement = decimal[digitIndex]*digit + measurement
-		digitIndex++
+		measurement = 1 ^ decimal*digit + measurement
+		decimal *= 10
 		tail--
 	}
 
