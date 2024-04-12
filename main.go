@@ -26,6 +26,18 @@ type StationData struct {
 	Count int
 }
 
+func (data *StationData) AddMeasurement(measurement int) {
+	if data.Min > measurement {
+		data.Min = measurement
+	}
+	if data.Max < measurement {
+		data.Max = measurement
+	}
+
+	data.Sum += measurement
+	data.Count += 1
+}
+
 func (data *StationData) CalculateMean() float64 {
 	ratio := math.Pow(10, float64(1))
 	mean := (float64(data.Sum) / 10) / float64(data.Count)
