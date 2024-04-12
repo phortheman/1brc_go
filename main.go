@@ -45,8 +45,8 @@ func (data *StationData) CalculateMean() float64 {
 }
 
 // Splits a line into station, measurement
-func SplitLine(line string) (string, int) {
-	station := ""
+func SplitLine(line []byte) ([]byte, int) {
+	var station []byte
 	isNegative := false
 	tail := len(line) - 1
 	measurement := 0
@@ -161,25 +161,18 @@ func ReadDataV1(filePath string) Data {
 			break
 		}
 		lineCount += 1
-		station, measurement := SplitLine(string(readLine[:]))
-		stationData, ok := data[station]
+		station, measurement := SplitLine(readLine)
+
+		stationData, ok := data[string(station)]
 		if !ok {
-			data[station] = &StationData{
+			data[string(station)] = &StationData{
 				Min:   measurement,
 				Max:   measurement,
 				Sum:   measurement,
 				Count: 1,
 			}
 		} else {
-			if stationData.Min > measurement {
-				stationData.Min = measurement
-			}
-			if stationData.Max < measurement {
-				stationData.Max = measurement
-			}
-
-			stationData.Sum += measurement
-			stationData.Count += 1
+			stationData.AddMeasurement(measurement)
 		}
 
 		if *progress && lineCount%50_000_000 == 0 {
