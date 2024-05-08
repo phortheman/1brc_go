@@ -1,6 +1,13 @@
 # Don't include the gigabytes of data to make sure Microsoft doesn't come knocking on my door
 *measurements.txt
 *result.txt
+data/
+results/
 
 # Don't include cpu and mem profiles
 *.prof*
+*.pprof*
+profiles/
+
+# Don't include the binary
+1brc
